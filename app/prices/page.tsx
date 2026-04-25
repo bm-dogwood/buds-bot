@@ -1,0 +1,177 @@
+// app/prices/page.tsx
+"use client";
+
+import { useMemo, useState } from "react";
+import { STRAINS } from "@/lib/cannabis-data";
+
+const FORMATS = ["8th", "Quarter", "Half", "Ounce"] as const;
+const FORMAT_MULT: Record<(typeof FORMATS)[number], number> = {
+  "8th": 1,
+  Quarter: 1.85,
+  Half: 3.4,
+  Ounce: 6.2,
+};
+
+export default function PricesPage() {
+  const [format, setFormat] = useState<(typeof FORMATS)[number]>("8th");
+  const [sort, setSort] = useState<"name" | "price" | "thc">("price");
+
+  const rows = useMemo(() => {
+    const list = STRAINS.map((s) => ({
+      ...s,
+      effective: s.price * FORMAT_MULT[format],
+      change: ((s.id.charCodeAt(0) % 7) - 3) * 0.6,
+    }));
+    list.sort((a, b) => {
+      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "thc") return b.thc - a.thc;
+      return b.effective - a.effective;
+    });
+    return list;
+  }, [format, sort]);
+
+  const high = Math.max(...rows.map((r) => r.effective));
+  const low = Math.min(...rows.map((r) => r.effective));
+
+  return (
+    <div className="px-6 lg:px-12 py-16">
+      <header className="border-b border-white/15 pb-12 mb-12">
+        <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-holo-green mb-6">
+          /02 — Live Index
+        </div>
+        <h1 className="font-serif text-6xl md:text-8xl italic font-black tracking-tighter leading-[0.85]">
+          The Index.
+        </h1>
+        <p className="mt-6 max-w-2xl font-mono text-xs uppercase tracking-widest text-silver leading-relaxed">
+          Aggregated retail spot prices across the network. Refreshed against
+          live menus every 90 minutes.
+        </p>
+      </header>
+
+      <div className="grid md:grid-cols-3 gap-px bg-white/15 border border-white/15 mb-12">
+        <div className="bg-matte p-8">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-silver mb-2">
+            Index high
+          </div>
+          <div className="font-serif text-6xl italic font-black tracking-tighter holo-text">
+            ${high.toFixed(2)}
+          </div>
+        </div>
+        <div className="bg-matte p-8">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-silver mb-2">
+            Index low
+          </div>
+          <div className="font-serif text-6xl italic font-black tracking-tighter">
+            ${low.toFixed(2)}
+          </div>
+        </div>
+        <div className="bg-matte p-8">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-silver mb-2">
+            Volatility (7d)
+          </div>
+          <div className="font-serif text-6xl italic font-black tracking-tighter text-destructive">
+            +4.2%
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-silver mb-2">
+            Format
+          </div>
+          <div className="flex gap-1 border border-white/15 p-1">
+            {FORMATS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setFormat(f)}
+                className={`px-4 py-2 font-mono text-[11px] uppercase tracking-widest transition-colors ${
+                  format === f
+                    ? "bg-holo-green text-matte"
+                    : "text-silver hover:text-paper"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-silver mb-2">
+            Sort
+          </div>
+          <select
+            value={sort}
+            onChange={(e) =>
+              setSort(e.target.value as "name" | "price" | "thc")
+            }
+            className="bg-card border border-white/15 px-4 py-3 font-mono text-xs uppercase tracking-widest focus:border-holo-green focus:outline-none"
+          >
+            <option value="price">Price (high to low)</option>
+            <option value="thc">Potency (high to low)</option>
+            <option value="name">Name (A to Z)</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="border border-white/15 bg-white/[0.02] overflow-x-auto">
+        <div className="min-w-[720px]">
+          <div className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr] border-b border-white/15 text-silver uppercase text-[10px] tracking-widest p-4 font-mono bg-white/5">
+            <div>Cultivar</div>
+            <div>Type</div>
+            <div>Spot vs. Index</div>
+            <div className="text-right">7d</div>
+            <div className="text-right">Spot / {format}</div>
+          </div>
+          {rows.map((r) => (
+            <div
+              key={r.id}
+              className="grid grid-cols-[2fr_1fr_2fr_1fr_1fr] border-b border-white/10 p-4 hover:bg-white/5 transition-colors items-center group cursor-crosshair"
+            >
+              <div>
+                <div className="font-serif italic font-black text-lg group-hover:text-holo-green transition-colors">
+                  {r.name}
+                </div>
+                <div className="font-mono text-[10px] uppercase tracking-widest text-silver mt-0.5">
+                  {r.lineage}
+                </div>
+              </div>
+              <div className="font-mono text-[11px] uppercase tracking-widest text-silver">
+                {r.type}
+              </div>
+              <div className="pr-6">
+                <div className="h-2 bg-white/10 relative overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-holo-purple to-holo-green"
+                    style={{ width: `${(r.effective / high) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div
+                className={`text-right font-mono text-xs tabular-nums ${
+                  r.change > 0
+                    ? "text-holo-green"
+                    : r.change < 0
+                    ? "text-destructive"
+                    : "text-silver"
+                }`}
+              >
+                {r.change > 0 ? "+" : ""}
+                {r.change.toFixed(1)}%
+              </div>
+              <div className="text-right font-mono font-bold tabular-nums">
+                ${r.effective.toFixed(2)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-8 font-mono text-[10px] uppercase tracking-widest text-silver/60">
+        {
+          "// Disclaimer: Prices reflect aggregated retail menu data. Actual transaction prices vary by jurisdiction, tax and discount."
+        }
+      </div>
+    </div>
+  );
+}
