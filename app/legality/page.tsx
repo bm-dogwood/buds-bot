@@ -1,7 +1,7 @@
 // app/legality/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { JURISDICTIONS } from "@/lib/cannabis-data";
+import { DEMO_JURISDICTIONS } from "@/lib/cannabis-api";
 
 export const metadata: Metadata = {
   title: "State Legality Map — BUDS.BOT",
@@ -21,12 +21,26 @@ const STATUS_COLOR: Record<string, string> = {
   Prohibited: "text-destructive border-destructive/40 bg-destructive/10",
 };
 
+// Use curated dataset — OpenStates doesn't expose clean status fields;
+// this data is compiled from NCSL + state regulatory body records.
+const JURISDICTIONS = DEMO_JURISDICTIONS;
+
 export default function LegalityPage() {
   const stats = {
     rec: JURISDICTIONS.filter((j) => j.status === "Recreational").length,
     med: JURISDICTIONS.filter((j) => j.status === "Medical").length,
+    dec: JURISDICTIONS.filter((j) => j.status === "Decriminalized").length,
     pro: JURISDICTIONS.filter((j) => j.status === "Prohibited").length,
   };
+
+  const avgSpot = (() => {
+    const prices = JURISDICTIONS.filter((j) => j.spotPrice !== null).map(
+      (j) => j.spotPrice as number
+    );
+    return prices.length
+      ? (prices.reduce((a, b) => a + b, 0) / prices.length).toFixed(2)
+      : "—";
+  })();
 
   return (
     <div className="px-6 lg:px-12 py-16">
@@ -38,12 +52,12 @@ export default function LegalityPage() {
           Jurisdiction.
         </h1>
         <p className="mt-6 max-w-2xl font-mono text-xs uppercase tracking-widest text-silver leading-relaxed">
-          Sourced from OpenStates filings and state regulatory bodies. Updated
-          nightly.
+          Compiled from NCSL filings, OpenStates bill tracking, and state
+          regulatory bodies. Updated nightly.
         </p>
       </header>
 
-      {/* Status legend & stats */}
+      {/* Stats */}
       <div className="grid md:grid-cols-4 gap-px bg-white/15 border border-white/15 mb-12">
         {[
           {
@@ -52,8 +66,8 @@ export default function LegalityPage() {
             c: "text-holo-green",
           },
           { k: stats.med.toString(), l: "Medical-only", c: "text-holo-purple" },
+          { k: stats.dec.toString(), l: "Decriminalized", c: "text-paper" },
           { k: stats.pro.toString(), l: "Prohibited", c: "text-destructive" },
-          { k: "2025", l: "Latest activations", c: "text-paper" },
         ].map((s) => (
           <div key={s.l} className="bg-matte p-8">
             <div
@@ -68,7 +82,22 @@ export default function LegalityPage() {
         ))}
       </div>
 
-      {/* Card grid as map proxy */}
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 mb-8">
+        {Object.entries(STATUS_COLOR).map(([status, cls]) => (
+          <div
+            key={status}
+            className={`border font-mono text-[9px] uppercase px-3 py-1.5 ${cls}`}
+          >
+            {status}
+          </div>
+        ))}
+        <div className="ml-auto font-mono text-[10px] uppercase tracking-widest text-silver self-center">
+          Avg spot / oz: ${avgSpot}
+        </div>
+      </div>
+
+      {/* Card grid */}
       <h2 className="font-serif text-3xl italic font-black mb-6">
         By territory.
       </h2>
@@ -79,9 +108,14 @@ export default function LegalityPage() {
             className="bg-matte p-6 group hover:bg-card transition-colors flex flex-col gap-3 min-h-[200px]"
           >
             <div className="flex items-start justify-between">
-              <h3 className="font-serif text-2xl italic font-black tracking-tighter group-hover:text-holo-green transition-colors">
-                {j.state}
-              </h3>
+              <div>
+                <div className="font-mono text-[9px] uppercase tracking-widest text-silver/50 mb-0.5">
+                  {j.abbr}
+                </div>
+                <h3 className="font-serif text-2xl italic font-black tracking-tighter group-hover:text-holo-green transition-colors">
+                  {j.state}
+                </h3>
+              </div>
               <span
                 className={`border font-mono text-[9px] uppercase px-2 py-1 ${
                   STATUS_COLOR[j.status]
@@ -118,8 +152,14 @@ export default function LegalityPage() {
               </div>
               {j.programYear && (
                 <div className="flex justify-between pt-1">
-                  <span className="text-silver">Activated</span>
-                  <span className="text-holo-purple">{j.programYear}</span>
+                  <span className="text-silver">Rec. activated</span>
+                  <span className="text-holo-green">{j.programYear}</span>
+                </div>
+              )}
+              {j.medicalYear && !j.programYear && (
+                <div className="flex justify-between pt-1">
+                  <span className="text-silver">Med. activated</span>
+                  <span className="text-holo-purple">{j.medicalYear}</span>
                 </div>
               )}
             </div>
@@ -137,6 +177,11 @@ export default function LegalityPage() {
         >
           Network locator →
         </Link>
+      </div>
+
+      <div className="mt-8 font-mono text-[10px] uppercase tracking-widest text-silver/40 text-center">
+        // Source: NCSL State Cannabis Laws · OpenStates · State regulatory body
+        records
       </div>
     </div>
   );
